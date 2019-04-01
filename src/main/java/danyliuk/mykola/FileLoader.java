@@ -1,11 +1,7 @@
 package danyliuk.mykola;
 
-import jdk.nashorn.internal.codegen.CompilerConstants;
-
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -15,47 +11,67 @@ import java.util.concurrent.Executors;
  */
 public class FileLoader {
 
-    public void run(String path) {
+    private static Scanner scanner = new Scanner(System.in);
+
+    public void run() {
+        System.out.print("Enter filepath or /q to quit: ");
+        String path = scanner.next();
+        if(path.equals("/q")){
+            return;
+        }
         File mainDirectory = new File(path);
-        openDirectory(mainDirectory);
+        try {
+            openDirectory(mainDirectory);
+        } catch (IOException e) {
+            System.err.println(e.getMessage());;
+        }
     }
 
-    private void openDirectory(File directory) {
-        System.out.println("In Directory " + directory.getName());
+    private void openDirectory(File directory) throws IOException {
         File[] elements = directory.listFiles();
         if(elements!=null){
+            //System.out.print("Directory " + directory.getName() + " elements: ");
+            for(File element:elements){
+                //System.out.print(element.getName() + " ");
+            }
+            System.out.print("\n");
             int size = elements.length;
             ExecutorService executorService = Executors.newFixedThreadPool(size);
             for(final File element:elements){
-                Callable<File> callable = new Callable<File>() {
-                    @Override
-                    public File call() throws Exception {
-                        if(element.isFile()){
-                            openFile(element);
-                        } else if(element.isDirectory()){
+                if(element.isDirectory()){
+                    Callable<Void> callable = new Callable<Void>() {
+                        @Override
+                        public Void call() throws Exception {
                             openDirectory(element);
+                            return null;
                         }
-                        return null;
-                    }
-                };
-                executorService.submit(callable);
+                    };
+                    executorService.submit(callable);
+                } else if(element.isFile()){
+                    openFile(element);
+                }
             }
+            executorService.shutdown();
         }
     }
 
     private void openFile(File file) throws IOException {
-        System.out.println("In File " + file.getName());
-        StringBuilder text = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String line = br.readLine();
-            while (line!=null){
-                String updated = replaceWords(line);
-                text.append(updated).append('\n');
-                line = br.readLine();
+        String fileName = file.getName();
+        String fileExtension = fileName.substring(fileName.lastIndexOf("."));
+        if(fileExtension.equals(".txt")){
+            StringBuilder text = new StringBuilder();
+            try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+                String line = br.readLine();
+                while (line!=null){
+                    String updated = replaceWords(line);
+                    text.append(updated).append('\n');
+                    line = br.readLine();
+                }
             }
-        }
-        try(BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
-            bw.write(String.valueOf(text));
+            try(BufferedWriter bw = new BufferedWriter(new FileWriter(file))) {
+                bw.write(String.valueOf(text));
+                System.out.println("Replaced in " + file.getAbsolutePath());
+            }
         }
     }
 
